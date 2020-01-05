@@ -13,6 +13,20 @@
 (require 's)
 (require 'dash)
 
+(defun bazel-transient/bazel-do (cmd args &optional target do-fn)
+  "Execute a Bazel command CMD with ARGS and optional TARGET.
+
+TARGET is provided primarily for semantic convenience.  Passing
+the corresponding value in as the last value of the ARGS list
+results in equivalent behavior.
+
+DO-FN is used to change exactly how the overall Bazel command is
+carried out.  By default, this is `compile', but can for instance
+be changed to `shell-command-to-string' if you intend to consume
+the command's results."
+  (let ((total-cmd (s-join " " (-flatten `("bazel" ,(symbol-name cmd) ,args ,target)))))
+    (funcall (or do-fn 'compile) total-cmd)))
+
 (define-infix-command bazel-test-test-output ()
   :class 'transient-switches
   :description "Test output style"
@@ -51,15 +65,19 @@
      "Test target: "
      (s-lines (shell-command-to-string "bazel query --noshow_progress \"kind(test, //... - //third_party/...)\"")))
     (transient-args 'bazel-test)))
-  (let ((cmd (s-join " " (-flatten `("bazel" "test" ,target ,args)))))
-    (compile cmd)))
+  (bazel-transient/bazel-do 'test args target))
 
 (defun bazel-test-all-in-current-package (args)
   (interactive (list (transient-args 'bazel-test)))
-  (let* ((curr-path-rel (s-prepend "./" (url-file-nondirectory buffer-file-name)))
-         (cmd-for-label (s-join " " (list "bazel" "query" "--noshow_progress" "--output label" curr-path-rel)))
-         (pkg-label (car (s-split ":" (shell-command-to-string cmd-for-label)))))
-    (compile (s-join " " (-flatten `("bazel" "test" ,args ,(s-append ":all" pkg-label)))))))
+  (let* ((buffer-relpath (s-concat "./"
+                                   (url-file-nondirectory buffer-file-name)))
+         (buffer-label (bazel-transient/bazel-do
+                        'query
+                        '("--noshow_progress" "--output label")
+                        buffer-relpath
+                        'shell-command-to-string))
+         (pkg-label (car (s-split ":" buffer-label))))
+    (bazel-transient/bazel-do 'test args (s-append ":all" pkg-label))))
 
 (define-transient-command bazel-test ()
   "Test a target."
@@ -71,9 +89,7 @@
   [[
     "Test"
     ("t" "target" bazel-test-target)
-    ("c" "all in current pkg"
-     bazel-test-all-in-current-package)
-    ;; FIXME: Test current package (printing pkg label)
+    ("c" "all in current pkg" bazel-test-all-in-current-package)
     ]])
 
 (provide 'bazel-transient)
