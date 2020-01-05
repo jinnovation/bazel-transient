@@ -1,4 +1,4 @@
-;;; bazel-transient --- Transient command execution for Bazel
+;;; bazel-transient --- Transient command execution for Bazel -*- lexical-binding: t -*-
 
 ;; Author: Jonathan Jin <jjin082693@gmail.com>
 ;; Maintainer: Jonathan Jin <jjin082693@gmail.com>
@@ -57,27 +57,39 @@ the command's results."
   :key "-t"
   :reader 'transient-read-number-N+)
 
+(defun bazel-transient/get-all-workspace-targets-of-kind (kind)
+  (let ((args `("--noshow_progress"
+                ,(s-lex-format "\"kind(${kind}, //... - //third_party/...)\""))))
+    (s-lines (bazel-transient/bazel-do 'query args nil 'shell-command-to-string))))
+
 ;; FIXME: Documentation
 (defun bazel-test-target (target args)
   (interactive
    (list
-    (ivy-completing-read
+    (ivy-read
      "Test target: "
-     (s-lines (shell-command-to-string "bazel query --noshow_progress \"kind(test, //... - //third_party/...)\"")))
+     (bazel-transient/get-all-workspace-targets-of-kind 'test))
     (transient-args 'bazel-test)))
   (bazel-transient/bazel-do 'test args target))
 
-(defun bazel-test-all-in-current-package (args)
-  (interactive (list (transient-args 'bazel-test)))
-  (let* ((buffer-relpath (s-concat "./"
-                                   (url-file-nondirectory buffer-file-name)))
+(defun bazel-transient/get-buffer-pkg-label (&optional buffer)
+  ;; FIXME: Interactively select buffer from those available
+  (let* ((b (or buffer (current-buffer)))
+         (buffer-relpath (s-concat "./"
+                                   (url-file-nondirectory (buffer-file-name b))))
          (buffer-label (bazel-transient/bazel-do
                         'query
                         '("--noshow_progress" "--output label")
                         buffer-relpath
-                        'shell-command-to-string))
-         (pkg-label (car (s-split ":" buffer-label))))
-    (bazel-transient/bazel-do 'test args (s-append ":all" pkg-label))))
+                        'shell-command-to-string)))
+    (car (s-split ":" buffer-label))))
+
+(defun bazel-transient/test-all-in-current-package (args)
+  "Execute all test targets in the current package.
+
+ARGS is forwarded to Bazel as test command flags."
+  (interactive (list (transient-args 'bazel-test)))
+  (bazel-transient/bazel-do 'test args (s-append ":all" (bazel-transient/get-buffer-pkg-label))))
 
 (define-transient-command bazel-test ()
   "Test a target."
@@ -89,7 +101,7 @@ the command's results."
   [[
     "Test"
     ("t" "target" bazel-test-target)
-    ("c" "all in current pkg" bazel-test-all-in-current-package)
+    ("c" "all in current pkg" bazel-transient/test-all-in-current-package)
     ]])
 
 (provide 'bazel-transient)
