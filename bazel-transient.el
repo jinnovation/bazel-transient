@@ -13,6 +13,19 @@
 (require 's)
 (require 'dash)
 
+;; FIXME: Copied wholesale from magit-utils.el. Upstream a PR to
+;; transient that decouples this from magit.
+(defmacro bazel-transient/read-char-case (prompt verbose &rest clauses)
+  (declare (indent 2)
+           (debug (form form &rest (characterp form body))))
+  `(prog1 (pcase (read-char-choice
+                  (concat ,prompt
+                          ,(concat (mapconcat 'cadr clauses ", ")
+                                   (and verbose ", or [C-g] to abort") " "))
+                  ',(mapcar 'car clauses))
+            ,@(--map `(,(car it) ,@(cddr it)) clauses))
+     (message "")))
+
 (defun bazel-transient/bazel-do (cmd args &optional target do-fn)
   "Execute a Bazel command CMD with ARGS and optional TARGET.
 
@@ -28,12 +41,16 @@ the command's results."
     (funcall (or do-fn 'compile) total-cmd)))
 
 (define-infix-command bazel-test-test-output ()
-  :class 'transient-switches
+  :class 'transient-option
   :description "Test output style"
   :key "-o"
-  :argument-format "--test_output=%s"
-  :argument-regexp "\\(--test_output=\\(summary\|errors\|all\|streamed\\)\\)"
-  :choices '("summary" "errors" "all" "streamed"))
+  :argument "--test_output="
+  :reader (lambda (&rest _ignore)
+            (bazel-transient/read-char-case nil t
+              (?u "s[u]mmary" "summary")
+              (?e "[e]rrors" "errors")
+              (?a "[a]ll" "all")
+              (?t "s[t]reamed" "streamed"))))
 
 (define-infix-command bazel-test-test-filter ()
   :description "Test filter"
@@ -44,11 +61,15 @@ the command's results."
 
 (define-infix-command bazel-test-test-summary ()
   :description "Test summary style"
-  :class 'transient-switches
+  :class 'transient-option
   :key "-s"
-  :argument-format "--test_summary=%s"
-  :choices '("short" "terse" "detailed" "none")
-  :argument-regexp "\\(--test_summary=\\(short\|terse\|detailed\|none\\)\\)")
+  :argument "--test_summary="
+  :reader (lambda (&rest _ignore)
+            (bazel-transient/read-char-case nil t
+              (?s "[s]hort" "short")
+              (?t "[t]erse" "terse")
+              (?d "[d]etailed" "detailed")
+              (?n "[n]one" "none"))))
 
 (define-infix-command bazel-test-test-timeout ()
   :description "Timeout"
