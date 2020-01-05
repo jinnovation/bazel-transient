@@ -80,7 +80,7 @@ the command's results."
 
 (defun bazel-transient/get-all-workspace-targets-of-kind (kind)
   (let ((args `("--noshow_progress"
-                ,(s-lex-format "\"kind(${kind}, //... - //third_party/...)\""))))
+                ,(s-lex-format "\"kind(${kind}, //...)\""))))
     (s-lines (bazel-transient/bazel-do 'query args nil 'shell-command-to-string))))
 
 ;; FIXME: Documentation

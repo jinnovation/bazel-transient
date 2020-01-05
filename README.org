@@ -1,0 +1,18 @@
+*NOTE*: This package is *heavily* a work in progress.
+
+* Overview
+
+  This package implements a [[https://github.com/magit/transient][transient command]] for running commands on a Bazel
+  workspace. It is heavily inspired by the use of transient commands in [[https://github.com/magit/magit][Magit]].
+
+* Development Notes
+
+  I am prioritizing the *testing* workflow, i.e. =bazel test=, since that is
+  what's most pressing to me in my current work at the moment. Currently, the
+  following are possible from within the transient:
+
+  - Easily switch between different test output and summary styles;
+  - Set test timeout;
+  - Set test filter;
+  - Select the test target within the workspace to run;
+  - Run all tests within the current buffer's package.
