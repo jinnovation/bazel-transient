@@ -5,6 +5,8 @@
   This package implements a [[https://github.com/magit/transient][transient command]] for running commands on a Bazel
   workspace. It is heavily inspired by the use of transient commands in [[https://github.com/magit/magit][Magit]].
 
+  [[file:screenshot/test.png]]
+
 * Development Notes
 
   I am prioritizing the *testing* workflow, i.e. =bazel test=, since that is
