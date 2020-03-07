@@ -71,6 +71,17 @@ the command's results."
               (?d "[d]etailed" "detailed")
               (?n "[n]one" "none"))))
 
+(define-infix-command bazel-test-cache-test-results ()
+  :description "Cache test results"
+  :class 'transient-option
+  :argument "--cache_test_results="
+  :key "-c"
+  :reader (lambda (&rest _ignore)
+            (bazel-transient/read-char-case nil t
+              (?y "[y]es" "yes")
+              (?n "[n]o" "no")
+              (?a "[a]uto" "auto"))))
+
 (define-infix-command bazel-test-test-timeout ()
   :description "Timeout"
   :class 'transient-option
@@ -115,6 +126,7 @@ ARGS is forwarded to Bazel as test command flags."
 (define-transient-command bazel-test ()
   "Test a target."
   ["Variables"
+   (bazel-test-cache-test-results)
    (bazel-test-test-output)
    (bazel-test-test-filter)
    (bazel-test-test-summary)
