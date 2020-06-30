@@ -13,6 +13,8 @@
 (require 's)
 (require 'dash)
 
+(defcustom bazel-cmd "bazel" "Command to run Bazel with.")
+
 ;; FIXME: Copied wholesale from magit-utils.el. Upstream a PR to
 ;; transient that decouples this from magit.
 (defmacro bazel-transient/read-char-case (prompt verbose &rest clauses)
@@ -37,7 +39,8 @@ DO-FN is used to change exactly how the overall Bazel command is
 carried out.  By default, this is `compile', but can for instance
 be changed to `shell-command-to-string' if you intend to consume
 the command's results."
-  (let ((total-cmd (s-join " " (-flatten `("bazel" ,(symbol-name cmd) ,args ,target)))))
+  (let ((total-cmd (s-join " " (-flatten `(,bazel-cmd ,(symbol-name cmd) ,args ,target)))))
+    (message total-cmd)
     (funcall (or do-fn 'compile) total-cmd)))
 
 (define-infix-command bazel-test-test-output ()
@@ -111,6 +114,10 @@ the command's results."
                                    (url-file-nondirectory (buffer-file-name b))))
          (buffer-label (bazel-transient/bazel-do
                         'query
+                        ;; FIXME: need the following as defaults
+                        ;; maybe consider creating a bazel profile
+                        ;; --noshow_loading_progress
+                        ;; --nohome_rc by default
                         '("--noshow_progress" "--output label")
                         buffer-relpath
                         'shell-command-to-string)))
