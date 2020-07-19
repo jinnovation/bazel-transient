@@ -1,23 +1,58 @@
-;;; bazel-transient --- Transient command dispatch for Bazel projects. -*- lexical-binding: t -*-
+;;; bazel-transient.el --- Transient command dispatch for Bazel projects. -*- lexical-binding: t -*-
 
-;; Author: Jonathan Jin <jjin082693@gmail.com>
-;; Maintainer: Jonathan Jin <jjin082693@gmail.com>
+;; Copyright © 2020 Jonathan Jin <me@jonathanj.in>
+
+;; Author: Jonathan Jin <me@jonathanj.in>
+;; URL: github.com/jinnovation/bazel-transient
+;; Keywords: project, convenience, build
+;; Version: 0.0.1
+;; Package-Requires: ((emacs "25.1") (pkg-info "0.6") (transient "0.2.0") (s "1.12.0") (dash "2.16.0"))
+
+;; This file is NOT part of GNU Emacs.
+
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation; either version 3, or (at your option)
+;; any later version.
+;;
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with GNU Emacs; see the file COPYING.  If not, write to the
+;; Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+;; Boston, MA 02110-1301, USA.
 
 ;;; Commentary:
-
+;;
 ;; Provides a transient command for testing of Bazel-based projects.
-
+;;
 ;;; Code:
 
 (require 'transient)
 (require 's)
 (require 'dash)
 
-(defcustom bazel-cmd "bazel" "Command to run Bazel with.")
+(defcustom bazel-cmd
+  "bazel"
+  "Command to run Bazel with."
+  :group 'bazel-transient
+  :type 'string)
+
+(defcustom bazel-transient/completion-system
+  'default
+  "Completion system to use."
+  :group 'bazel-transient
+  :options '(default
+              ivy)
+  :type 'symbol)
 
 ;; FIXME: Copied wholesale from magit-utils.el. Upstream a PR to
 ;; transient that decouples this from magit.
 (defmacro bazel-transient/read-char-case (prompt verbose &rest clauses)
+  "TODO: Documentation.  PROMPT VERBOSE CLAUSES."
   (declare (indent 2)
            (debug (form form &rest (characterp form body))))
   `(prog1 (pcase (read-char-choice
@@ -49,7 +84,7 @@ the command's results."
     (message total-cmd)
     (funcall (or do-fn 'compile) total-cmd)))
 
-(define-infix-command bazel-test-test-output ()
+(transient-define-infix bazel-test-test-output ()
   :class 'transient-option
   :description "Test output style"
   :key "-o"
@@ -61,14 +96,14 @@ the command's results."
               (?a "[a]ll" "all")
               (?t "s[t]reamed" "streamed"))))
 
-(define-infix-command bazel-test-test-filter ()
+(transient-define-infix bazel-test-test-filter ()
   :description "Test filter"
   :class 'transient-option
   :argument "--test_filter="
   :key "-f"
   :reader 'completing-read)
 
-(define-infix-command bazel-test-test-summary ()
+(transient-define-infix bazel-test-test-summary ()
   :description "Test summary style"
   :class 'transient-option
   :key "-s"
@@ -80,7 +115,7 @@ the command's results."
               (?d "[d]etailed" "detailed")
               (?n "[n]one" "none"))))
 
-(define-infix-command bazel-test-cache-test-results ()
+(transient-define-infix bazel-test-cache-test-results ()
   :description "Cache test results"
   :class 'transient-option
   :argument "--cache_test_results="
@@ -91,7 +126,7 @@ the command's results."
               (?n "[n]o" "no")
               (?a "[a]uto" "auto"))))
 
-(define-infix-command bazel-test-test-timeout ()
+(transient-define-infix bazel-test-test-timeout ()
   :description "Timeout"
   :class 'transient-option
   :argument "--test_timeout="
@@ -99,22 +134,35 @@ the command's results."
   :reader 'transient-read-number-N+)
 
 (defun bazel-transient/get-all-workspace-targets-of-kind (kind)
+  "Get all targets in the current workspace of KIND."
   (let ((args `("--noshow_progress"
                 ,(s-lex-format "\"kind(${kind}, //...)\""))))
                 ;; "| cat")))
     (s-lines (bazel-transient/bazel-do 'query args nil 'shell-command-to-string))))
 
+(defun bazel-transient/completing-read (prompt choices)
+  (cond
+   ((eq bazel-transient/completion-system 'default)
+    (completing-read prompt choices))
+   ((eq bazel-transient/completion-system 'ivy)
+    (if (fboundp 'ivy-read)
+        (ivy-read prompt choices)
+      (user-error "Ivy selected, but not installed. Please install.")))
+   (t (funcall bazel-transient/completion-system prompt choices))))
+
 ;; FIXME: Documentation
 (defun bazel-test-target (target args)
+  "Test the argument TARGET using `bazel-cmd'.  ARGS are forwarded."
   (interactive
    (list
-    (ivy-read
+    (bazel-transient/completing-read
      "Test target: "
      (bazel-transient/get-all-workspace-targets-of-kind 'test))
     (transient-args 'bazel-test)))
   (bazel-transient/bazel-do 'test args target))
 
 (defun bazel-transient/get-buffer-pkg-label (&optional buffer)
+  "Gets the label of the package that the file BUFFER is visiting belongs to."
   ;; FIXME: Interactively select buffer from those available
   (let* ((b (or buffer (current-buffer)))
          (buffer-relpath (s-concat "./"
@@ -137,7 +185,7 @@ ARGS is forwarded to Bazel as test command flags."
   (interactive (list (transient-args 'bazel-test)))
   (bazel-transient/bazel-do 'test args (s-append ":all" (bazel-transient/get-buffer-pkg-label))))
 
-(define-transient-command bazel-test ()
+(transient-define-prefix bazel-test ()
   "Test a target."
   ["Variables"
    (bazel-test-cache-test-results)
@@ -152,4 +200,5 @@ ARGS is forwarded to Bazel as test command flags."
     ]])
 
 (provide 'bazel-transient)
+
 ;;; bazel-transient.el ends here
