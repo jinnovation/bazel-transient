@@ -1,4 +1,4 @@
-;;; bazel-transient.el --- Transient command dispatch for Bazel projects. -*- lexical-binding: t -*-
+;;; bazel-transient.el --- Transient command dispatch for Bazel projects -*- lexical-binding: t -*-
 
 ;; Copyright © 2020 Jonathan Jin <me@jonathanj.in>
 
@@ -35,13 +35,13 @@
 (require 's)
 (require 'dash)
 
-(defcustom bazel-cmd
+(defcustom bazel-transient-bazel-cmd
   "bazel"
   "Command to run Bazel with."
   :group 'bazel-transient
   :type 'string)
 
-(defcustom bazel-transient/completion-system
+(defcustom bazel-transient-completion-system
   'default
   "Completion system to use."
   :group 'bazel-transient
@@ -51,7 +51,7 @@
 
 ;; FIXME: Copied wholesale from magit-utils.el. Upstream a PR to
 ;; transient that decouples this from magit.
-(defmacro bazel-transient/read-char-case (prompt verbose &rest clauses)
+(defmacro bazel-transient-read-char-case (prompt verbose &rest clauses)
   "TODO: Documentation.  PROMPT VERBOSE CLAUSES."
   (declare (indent 2)
            (debug (form form &rest (characterp form body))))
@@ -63,7 +63,7 @@
             ,@(--map `(,(car it) ,@(cddr it)) clauses))
      (message "")))
 
-(defun bazel-transient/bazel-do (cmd args &optional target do-fn)
+(defun bazel-transient-bazel-do (cmd args &optional target do-fn)
   "Execute a Bazel command CMD with ARGS and optional TARGET.
 
 TARGET is provided primarily for semantic convenience.  Passing
@@ -79,7 +79,7 @@ the command's results."
   ;; dazel from within Emacs as running inside a tty, leading to "not a tty"
   ;; errors. This might only be an issue w/ NVIDIA's internal Dazel, but who
   ;; knows.
-  (let ((total-cmd (s-join " " (-flatten `(,bazel-cmd ,(symbol-name cmd) ,args
+  (let ((total-cmd (s-join " " (-flatten `(,bazel-transient-bazel-cmd ,(symbol-name cmd) ,args
                                                       ,target "| cat")))))
     (message total-cmd)
     (funcall (or do-fn 'compile) total-cmd)))
@@ -90,7 +90,7 @@ the command's results."
   :key "-o"
   :argument "--test_output="
   :reader (lambda (&rest _ignore)
-            (bazel-transient/read-char-case nil t
+            (bazel-transient-read-char-case nil t
               (?u "s[u]mmary" "summary")
               (?e "[e]rrors" "errors")
               (?a "[a]ll" "all")
@@ -109,7 +109,7 @@ the command's results."
   :key "-s"
   :argument "--test_summary="
   :reader (lambda (&rest _ignore)
-            (bazel-transient/read-char-case nil t
+            (bazel-transient-read-char-case nil t
               (?s "[s]hort" "short")
               (?t "[t]erse" "terse")
               (?d "[d]etailed" "detailed")
@@ -121,7 +121,7 @@ the command's results."
   :argument "--cache_test_results="
   :key "-c"
   :reader (lambda (&rest _ignore)
-            (bazel-transient/read-char-case nil t
+            (bazel-transient-read-char-case nil t
               (?y "[y]es" "yes")
               (?n "[n]o" "no")
               (?a "[a]uto" "auto"))))
@@ -133,53 +133,53 @@ the command's results."
   :key "-t"
   :reader 'transient-read-number-N+)
 
-(defun bazel-transient/get-all-workspace-targets-of-kind (kind)
+(defun bazel-transient-get-all-workspace-targets-of-kind (kind)
   "Get all targets in the current workspace of KIND."
-  (if-let ((cached-targets (gethash kind bazel-transient/kind-target-cache)))
+  (if-let ((cached-targets (gethash kind bazel-transient-kind-target-cache)))
       cached-targets
     (let* ((args `("--noshow_progress"
                    ,(s-lex-format "\"kind(${kind}, //...)\"")))
-           (output (bazel-transient/bazel-do 'query args nil
+           (output (bazel-transient-bazel-do 'query args nil
                                              'shell-command-to-string))
            (results (s-lines output)))
-      (bazel-transient/cache-targets-maybe kind results))))
+      (bazel-transient-cache-targets-maybe kind results))))
 
-(defun bazel-transient/cache-targets-maybe (kind results)
-  (if (not bazel-transient/enable-caching)
+(defun bazel-transient-cache-targets-maybe (kind results)
+  (if (not bazel-transient-enable-caching)
       results
     ;; FIXME: Note that this won't work across multiple projects. Need a way to
     ;; define a project ROOT, e.g. optionally using Projectile.
-    (puthash kind results bazel-transient/kind-target-cache)
-    (bazel-transient/serialize-kind-target-cache)))
+    (puthash kind results bazel-transient-kind-target-cache)
+    (bazel-transient-serialize-kind-target-cache)))
 
-(defun bazel-transient/completing-read (prompt choices)
+(defun bazel-transient-completing-read (prompt choices)
   (cond
-   ((eq bazel-transient/completion-system 'default)
+   ((eq bazel-transient-completion-system 'default)
     (completing-read prompt choices))
-   ((eq bazel-transient/completion-system 'ivy)
+   ((eq bazel-transient-completion-system 'ivy)
     (if (fboundp 'ivy-read)
         (ivy-read prompt choices)
       (user-error "Ivy selected, but not installed.  Please install")))
-   (t (funcall bazel-transient/completion-system prompt choices))))
+   (t (funcall bazel-transient-completion-system prompt choices))))
 
 ;; FIXME: Documentation
 (defun bazel-test-target (target args)
-  "Test the argument TARGET using `bazel-cmd'.  ARGS are forwarded."
+  "Test the argument TARGET using `bazel-transient-bazel-cmd'.  ARGS are forwarded."
   (interactive
    (list
-    (bazel-transient/completing-read
+    (bazel-transient-completing-read
      "Test target: "
-     (bazel-transient/get-all-workspace-targets-of-kind 'test))
+     (bazel-transient-get-all-workspace-targets-of-kind 'test))
     (transient-args 'bazel-test)))
-  (bazel-transient/bazel-do 'test args target))
+  (bazel-transient-bazel-do 'test args target))
 
-(defun bazel-transient/get-buffer-pkg-label (&optional buffer)
+(defun bazel-transient-get-buffer-pkg-label (&optional buffer)
   "Gets the label of the package that the file BUFFER is visiting belongs to."
   ;; FIXME: Interactively select buffer from those available
   (let* ((b (or buffer (current-buffer)))
          (buffer-relpath (s-concat "./"
                                    (url-file-nondirectory (buffer-file-name b))))
-         (buffer-label (bazel-transient/bazel-do
+         (buffer-label (bazel-transient-bazel-do
                         'query
                         ;; FIXME: need the following as defaults
                         ;; maybe consider creating a bazel profile
@@ -190,12 +190,12 @@ the command's results."
                         'shell-command-to-string)))
     (car (s-split ":" buffer-label))))
 
-(defun bazel-transient/test-all-in-current-package (args)
+(defun bazel-transient-test-all-in-current-package (args)
   "Execute all test targets in the current package.
 
 ARGS is forwarded to Bazel as test command flags."
   (interactive (list (transient-args 'bazel-test)))
-  (bazel-transient/bazel-do 'test args (s-append ":all" (bazel-transient/get-buffer-pkg-label))))
+  (bazel-transient-bazel-do 'test args (s-append ":all" (bazel-transient-get-buffer-pkg-label))))
 
 (transient-define-prefix bazel-test ()
   "Test a target."
@@ -208,7 +208,7 @@ ARGS is forwarded to Bazel as test command flags."
   [[
     "Test"
     ("t" "target" bazel-test-target)
-    ("c" "all in current pkg" bazel-transient/test-all-in-current-package)
+    ("c" "all in current pkg" bazel-transient-test-all-in-current-package)
     ]])
 
 (provide 'bazel-transient)
