@@ -18,3 +18,11 @@
   - Set test filter;
   - Select the test target within the workspace to run;
   - Run all tests within the current buffer's package.
+
+* Credits
+
+  Thanks to [[github.com/bbatsov/][Bozhidar Batsov]], whose excellent [[github.com/bbatsov/projectile/][Projectile]] project inspires much of
+  the functionality of this package.
+
+  Thanks to [[https://github.com/tarsius][Jonas Bernoulli]] and the [[https://github.com/magit/magit][Magit]] project for creating the foundation of
+  [[https://github.com/magit/transient][Transient]], which forms the core motivation of this project.

@@ -3,7 +3,7 @@
 ;; Copyright © 2020 Jonathan Jin <me@jonathanj.in>
 
 ;; Author: Jonathan Jin <me@jonathanj.in>
-;; URL: github.com/jinnovation/bazel-transient
+;; URL: https://github.com/jinnovation/bazel-transient
 ;; Keywords: project, convenience, build
 ;; Version: 0.0.1
 ;; Package-Requires: ((emacs "25.1") (pkg-info "0.6") (transient "0.2.0") (s "1.12.0") (dash "2.16.0"))
@@ -34,6 +34,8 @@
 (require 'transient)
 (require 's)
 (require 'dash)
+
+(require 'bazel-transient-test)
 
 (defcustom bazel-transient-bazel-cmd
   "bazel"

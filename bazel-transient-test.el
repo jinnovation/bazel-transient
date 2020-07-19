@@ -23,3 +23,5 @@
 (defun bazel-transient-serialize-kind-target-cache ()
   "Serializes the test cache to the hard drive."
   (message "TODO: bazel-transient-serialize-kind-target-cache"))
+
+(provide 'bazel-transient-test)
