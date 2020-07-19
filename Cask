@@ -4,8 +4,9 @@
 (package-file "bazel-transient.el")
 
 (development
- (depends-on "f")
- (depends-on "ecukes")
+ (depends-on "buttercup")
  (depends-on "ert-runner")
  (depends-on "el-mock")
- (depends-on "package-lint"))
+ (depends-on "f")
+ (depends-on "package-lint")
+ (depends-on "undercover"))

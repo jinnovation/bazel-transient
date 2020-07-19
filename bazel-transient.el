@@ -171,7 +171,8 @@ RESULTS.  Otherwise, cache and return RESULTS."
     ;; FIXME: Note that this won't work across multiple projects. Need a way to
     ;; define a project ROOT, e.g. optionally using Projectile.
     (puthash kind results bazel-transient-kind-target-cache)
-    (bazel-transient-serialize-kind-target-cache)))
+    (bazel-transient-serialize-kind-target-cache)
+    results))
 
 (defun bazel-transient-completing-read (prompt choices)
   "Present PROMPT with CHOICES based on `bazel-transient-completion-system'."
