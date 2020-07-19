@@ -1,4 +1,4 @@
-;;; bazel-transient --- Transient command execution for Bazel -*- lexical-binding: t -*-
+;;; bazel-transient --- Transient command dispatch for Bazel projects. -*- lexical-binding: t -*-
 
 ;; Author: Jonathan Jin <jjin082693@gmail.com>
 ;; Maintainer: Jonathan Jin <jjin082693@gmail.com>
@@ -39,7 +39,13 @@ DO-FN is used to change exactly how the overall Bazel command is
 carried out.  By default, this is `compile', but can for instance
 be changed to `shell-command-to-string' if you intend to consume
 the command's results."
-  (let ((total-cmd (s-join " " (-flatten `(,bazel-cmd ,(symbol-name cmd) ,args ,target)))))
+  ;; FIXME: The | cat is a horrid hack to get around dazel
+  ;; (https://github.com/nadirizr/dazel) detecting sub-processes calling out to
+  ;; dazel from within Emacs as running inside a tty, leading to "not a tty"
+  ;; errors. This might only be an issue w/ NVIDIA's internal Dazel, but who
+  ;; knows.
+  (let ((total-cmd (s-join " " (-flatten `(,bazel-cmd ,(symbol-name cmd) ,args
+                                                      ,target "| cat")))))
     (message total-cmd)
     (funcall (or do-fn 'compile) total-cmd)))
 
@@ -95,6 +101,7 @@ the command's results."
 (defun bazel-transient/get-all-workspace-targets-of-kind (kind)
   (let ((args `("--noshow_progress"
                 ,(s-lex-format "\"kind(${kind}, //...)\""))))
+                ;; "| cat")))
     (s-lines (bazel-transient/bazel-do 'query args nil 'shell-command-to-string))))
 
 ;; FIXME: Documentation
