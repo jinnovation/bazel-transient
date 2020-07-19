@@ -31,9 +31,10 @@
 ;;
 ;;; Code:
 
+(require 'dash)
 (require 'transient)
 (require 's)
-(require 'dash)
+(require 'subr-x)
 
 (defcustom bazel-transient-bazel-cmd
   "bazel"
@@ -59,7 +60,11 @@
   (expand-file-name "bazel-transient-targets.cache" user-emacs-directory)
   "The name of the Bazel-Transient test target cache file."
   :group 'bazel-transient
-  :type 'string)
+  :type 'file)
+
+(defvar bazel-transient-kind-target-cache
+  (make-hash-table :test 'equal)
+  "A hashmap used to cache project targets by kind.")
 
 ;; FIXME: Copied wholesale from magit-utils.el. Upstream a PR to
 ;; transient that decouples this from magit.
@@ -157,6 +162,10 @@ the command's results."
       (bazel-transient-cache-targets-maybe kind results))))
 
 (defun bazel-transient-cache-targets-maybe (kind results)
+  "Conditionally cache RESULTS under the kind KIND.
+
+If `bazel-test-cache-test-results' is nil, simply return
+RESULTS.  Otherwise, cache and return RESULTS."
   (if (not bazel-transient-enable-caching)
       results
     ;; FIXME: Note that this won't work across multiple projects. Need a way to
@@ -165,6 +174,7 @@ the command's results."
     (bazel-transient-serialize-kind-target-cache)))
 
 (defun bazel-transient-completing-read (prompt choices)
+  "Present PROMPT with CHOICES based on `bazel-transient-completion-system'."
   (cond
    ((eq bazel-transient-completion-system 'default)
     (completing-read prompt choices))
@@ -223,19 +233,36 @@ ARGS is forwarded to Bazel as test command flags."
     ("c" "all in current pkg" bazel-transient-test-all-in-current-package)
     ]])
 
-(defvar bazel-transient-kind-target-cache
-  (make-hash-table :test 'equal)
-  "A hashmap used to cache project targets by kind.")
-
 ;; Credit to bbatsov's projectile-serialize
 (defun bazel-transient-serialize (data filename)
+  "Serialize DATA to FILENAME."
   (when (file-writable-p filename)
     (with-temp-file filename
-      (insert (let (print-legth) (prin1-to-string data))))))
+      (insert (let (print-length) (prin1-to-string data))))))
+
+;; Credit to bbatsov's projectile-unserialize
+(defun bazel-transient-unserialize (filename)
+  "Read data serialized by `bazel-transient-serialize' in FILENAME."
+  (with-demoted-errors
+      "Error during file deserialization: %S"
+    (when (file-exists-p filename)
+      (with-temp-buffer
+        (insert-file-contents filename)
+        ;; this will blow up if the contents of the file aren't
+        ;; lisp data structures
+        (read (buffer-string))))))
 
 (defun bazel-transient-serialize-kind-target-cache ()
   "Serializes the test cache to the hard drive."
-  (message "TODO: bazel-transient-serialize-kind-target-cache"))
+  (bazel-transient-serialize bazel-transient-kind-target-cache bazel-transient-cache-file))
+
+(define-minor-mode bazel-transient-mode
+  "Minor mode to enable transient command dispatch for Bazel projects."
+  :group 'bazel-transient
+  (unless bazel-transient-kind-target-cache
+    (setq bazel-transient-kind-target-cache
+          (or (bazel-transient-unserialize bazel-transient-cache-file)
+              (make-hash-table :test 'equal)))))
 
 (provide 'bazel-transient)
 
