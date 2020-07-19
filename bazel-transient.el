@@ -135,10 +135,22 @@ the command's results."
 
 (defun bazel-transient/get-all-workspace-targets-of-kind (kind)
   "Get all targets in the current workspace of KIND."
-  (let ((args `("--noshow_progress"
-                ,(s-lex-format "\"kind(${kind}, //...)\""))))
-                ;; "| cat")))
-    (s-lines (bazel-transient/bazel-do 'query args nil 'shell-command-to-string))))
+  (if-let ((cached-targets (gethash kind bazel-transient/kind-target-cache)))
+      cached-targets
+    (let* ((args `("--noshow_progress"
+                   ,(s-lex-format "\"kind(${kind}, //...)\"")))
+           (output (bazel-transient/bazel-do 'query args nil
+                                             'shell-command-to-string))
+           (results (s-lines output)))
+      (bazel-transient/cache-targets-maybe kind results))))
+
+(defun bazel-transient/cache-targets-maybe (kind results)
+  (if (not bazel-transient/enable-caching)
+      results
+    ;; FIXME: Note that this won't work across multiple projects. Need a way to
+    ;; define a project ROOT, e.g. optionally using Projectile.
+    (puthash kind results bazel-transient/kind-target-cache)
+    (bazel-transient/serialize-kind-target-cache)))
 
 (defun bazel-transient/completing-read (prompt choices)
   (cond
@@ -147,7 +159,7 @@ the command's results."
    ((eq bazel-transient/completion-system 'ivy)
     (if (fboundp 'ivy-read)
         (ivy-read prompt choices)
-      (user-error "Ivy selected, but not installed. Please install.")))
+      (user-error "Ivy selected, but not installed.  Please install")))
    (t (funcall bazel-transient/completion-system prompt choices))))
 
 ;; FIXME: Documentation
