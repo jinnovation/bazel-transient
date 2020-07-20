@@ -57,4 +57,12 @@
   (it "invalidates the in-memory cache")
   (it "deletes the serialized file cache")))
 
+(describe
+ "unserialize"
+ (it "can round-trip serialize"
+     (let* ((filename "/tmp/foo")
+            (data (ht ('test '("foo" "bar")))))
+       (bazel-transient-serialize data filename)
+       (expect (bazel-transient-unserialize filename) :to-equal-ht data))))
+
 ;;; bazel-transient-test.el ends here
