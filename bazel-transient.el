@@ -64,7 +64,7 @@
   :type 'file)
 
 (defvar bazel-transient-kind-target-cache
-  (make-hash-table :test 'equal)
+  (ht)
   "A hashmap used to cache project targets by kind.")
 
 ;; FIXME: Copied wholesale from magit-utils.el. Upstream a PR to
@@ -153,8 +153,8 @@ the command's results."
 
 (defun bazel-transient-get-all-workspace-targets-of-kind (kind)
   "Get all targets in the current workspace of KIND."
-  ;; FIXME: Only check cache if caching enabled.
-  (if-let ((cached-targets (gethash kind bazel-transient-kind-target-cache)))
+  (if-let ((caching-p bazel-transient-enable-caching)
+           (cached-targets (gethash kind bazel-transient-kind-target-cache)))
       cached-targets
     (let* ((args `("--noshow_progress"
                    ,(s-lex-format "\"kind(${kind}, //...)\"")))
@@ -179,7 +179,7 @@ RESULTS.  Otherwise, cache and return RESULTS."
 (defun bazel-transient-invalidate-cache-maybe ()
   "Invalidate the cache if `bazel-transient-enable-caching' is non-nil."
   (when bazel-transient-enable-caching
-    (setq bazel-transient-kind-target-cache (make-hash-table :test 'equal))
+    (setq bazel-transient-kind-target-cache (ht))
     (if bazel-transient-enable-caching (bazel-transient-serialize-kind-target-cache))))
 
 (defun bazel-transient-completing-read (prompt choices)
@@ -271,7 +271,7 @@ ARGS is forwarded to Bazel as test command flags."
   (unless bazel-transient-kind-target-cache
     (setq bazel-transient-kind-target-cache
           (or (bazel-transient-unserialize bazel-transient-cache-file)
-              (make-hash-table :test 'equal)))))
+              (ht)))))
 
 (provide 'bazel-transient)
 

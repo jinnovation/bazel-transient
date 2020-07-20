@@ -95,7 +95,12 @@
  (describe
   "when `bazel-transient-enable-caching' is nil"
   (before-each
-   (setq bazel-transient-enable-caching nil))
-  ))
+   (setq bazel-transient-enable-caching nil)
+   (setq bazel-transient-kind-target-cache (ht ('test '("foo")))))
+
+  (it "returns the Bazel query result"
+      (let ((res (bazel-transient-get-all-workspace-targets-of-kind 'test)))
+        (expect 'bazel-transient-bazel-do :to-have-been-called)
+        (expect res :to-equal '("foo" "bar" "baz"))))))
 
 ;;; bazel-transient-test.el ends here
