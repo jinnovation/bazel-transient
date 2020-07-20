@@ -8,3 +8,6 @@ lint:
 
 test:
 	cask exec buttercup -L .
+
+elpa:
+	cask install

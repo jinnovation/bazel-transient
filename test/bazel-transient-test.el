@@ -19,6 +19,7 @@
 
 (require 'buttercup)
 (require 'dash)
+(require 'ht)
 
 (describe
  "bazel-transient-cache-targets-maybe"
@@ -32,5 +33,28 @@
        (lambda (cache-enabled)
          (let ((bazel-transient-enable-caching cache-enabled))
            (expect (bazel-transient-cache-targets-maybe 'kind '("foo")) :to-equal '("foo")))))))
+
+(describe
+ "bazel-transient-invalidate-cache-maybe"
+
+ (describe
+  "when `bazel-transient-enable-caching' is nil"
+  (before-each
+   (setq bazel-transient-enable-caching nil)
+   (setq bazel-transient-kind-target-cache
+         (ht ('test '("foo" "bar")))))
+  (it "does nothing"
+      (spy-on 'bazel-transient-serialize-kind-target-cache)
+      (let ((orig-cache-value bazel-transient-kind-target-cache))
+        (bazel-transient-invalidate-cache-maybe)
+        (expect bazel-transient-kind-target-cache :to-equal orig-cache-value))
+      (expect 'bazel-transient-serialize-kind-target-cache :not :to-have-been-called)))
+
+ (describe
+  "when `bazel-transient-enable-caching' is non-nil"
+  (before-each
+   (setq bazel-transient-enable-caching t))
+  (it "invalidates the in-memory cache")
+  (it "deletes the serialized file cache")))
 
 ;;; bazel-transient-test.el ends here

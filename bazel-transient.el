@@ -6,7 +6,7 @@
 ;; URL: https://github.com/jinnovation/bazel-transient
 ;; Keywords: project, convenience, build
 ;; Version: 0.0.1
-;; Package-Requires: ((emacs "25.1") (pkg-info "0.6") (transient "0.2.0") (s "1.12.0") (dash "2.16.0"))
+;; Package-Requires: ((emacs "25.1") (pkg-info "0.6") (ht "2.2") (transient "0.2.0") (s "1.12.0") (dash "2.16.0"))
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -32,6 +32,7 @@
 ;;; Code:
 
 (require 'dash)
+(require 'ht)
 (require 'transient)
 (require 's)
 (require 'subr-x)
@@ -173,6 +174,12 @@ RESULTS.  Otherwise, cache and return RESULTS."
     (puthash kind results bazel-transient-kind-target-cache)
     (bazel-transient-serialize-kind-target-cache)
     results))
+
+(defun bazel-transient-invalidate-cache-maybe ()
+  "Invalidate the cache if `bazel-transient-enable-caching' is non-nil."
+  (when bazel-transient-enable-caching
+    (setq bazel-transient-kind-target-cache (make-hash-table :test 'equal))
+    (if bazel-transient-enable-caching (bazel-transient-serialize-kind-target-cache))))
 
 (defun bazel-transient-completing-read (prompt choices)
   "Present PROMPT with CHOICES based on `bazel-transient-completion-system'."
