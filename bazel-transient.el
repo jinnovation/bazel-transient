@@ -153,6 +153,7 @@ the command's results."
 
 (defun bazel-transient-get-all-workspace-targets-of-kind (kind)
   "Get all targets in the current workspace of KIND."
+  ;; FIXME: Only check cache if caching enabled.
   (if-let ((cached-targets (gethash kind bazel-transient-kind-target-cache)))
       cached-targets
     (let* ((args `("--noshow_progress"

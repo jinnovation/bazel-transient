@@ -1,4 +1,4 @@
-;;; bazel-transient-test.el --- Tests for bazel-transient
+;;; bazel-transient-test.el --- Tests for bazel-transient -*- lexical-binding: t -*-
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -64,5 +64,38 @@
             (data (ht ('test '("foo" "bar")))))
        (bazel-transient-serialize data filename)
        (expect (bazel-transient-unserialize filename) :to-equal-ht data))))
+
+(describe
+ "bazel-transient-get-all-workspace-targets-of-kind"
+ (before-each
+  (setq bazel-transient-kind-target-cache (ht ('test '("foo"))))
+  (spy-on 'bazel-transient-bazel-do :and-return-value "foo\nbar\nbaz"))
+
+ (describe
+  "when `bazel-transient-enable-caching' is non-nil"
+  (before-each
+   (setq bazel-transient-enable-caching t))
+
+  (describe
+   "when cache contains the kind"
+   (it "returns the cached value"
+       (expect (bazel-transient-get-all-workspace-targets-of-kind 'test)
+               :to-equal
+               '("foo")))
+   (it "makes no call to Bazel"
+       (expect 'bazel-transient-bazel-do :not :to-have-been-called)))
+
+  (describe
+   "when cache does not contain the kind"
+   (it "returns the Bazel query result"
+       (let ((res (bazel-transient-get-all-workspace-targets-of-kind 'other-kind)))
+         (expect res :to-equal '("foo" "bar" "baz"))
+         (expect 'bazel-transient-bazel-do :to-have-been-called)))))
+
+ (describe
+  "when `bazel-transient-enable-caching' is nil"
+  (before-each
+   (setq bazel-transient-enable-caching nil))
+  ))
 
 ;;; bazel-transient-test.el ends here
