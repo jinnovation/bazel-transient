@@ -1,5 +1,9 @@
 *NOTE*: This package is *heavily* a work in progress.
 
+#+HTML: <a href="https://codecov.io/gh/jinnovation/bazel-transient">
+#+HTML: <img alt="Codecov" src="https://img.shields.io/codecov/c/github/jinnovation/bazel-transient?style=for-the-badge">
+#+HTML: </a>
+
 * Overview
 
   This package implements a [[https://github.com/magit/transient][transient command]] for running commands on a Bazel
