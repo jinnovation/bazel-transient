@@ -103,4 +103,13 @@
         (expect 'bazel-transient-bazel-do :to-have-been-called)
         (expect res :to-equal '("foo" "bar" "baz"))))))
 
+(describe
+ "bazel-transient-shell-command-to-string-maybe"
+ (describe
+  "when command fails"
+  (it "returns nil"))
+ (describe
+  "when command succeeds"
+  (it "returns the command output")))
+
 ;;; bazel-transient-test.el ends here

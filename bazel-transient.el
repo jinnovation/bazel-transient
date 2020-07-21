@@ -236,7 +236,7 @@ RESULTS.  Otherwise, cache and return RESULTS."
 
 (defun bazel-transient-shell-command-to-string-maybe (cmd)
   "Return the output of CMD only if it successfully executes."
-  (let* ((exit-code nil)
+  (let* ((exit-code -1)
          (output (s-trim-right (with-output-to-string
                                  (with-current-buffer standard-output
                                    (setq exit-code (call-process-shell-command cmd nil t nil)))))))
