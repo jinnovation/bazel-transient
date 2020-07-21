@@ -81,6 +81,19 @@
             ,@(--map `(,(car it) ,@(cddr it)) clauses))
      (message "")))
 
+(defun bazel-transient-bazel-do-subprocess (cmd args &optional target do-fn)
+  ;; FIXME: The | cat is a horrid hack to get around dazel
+  ;; (https://github.com/nadirizr/dazel) detecting sub-processes calling out to
+  ;; dazel from within Emacs as running inside a tty, leading to "not a tty"
+  ;; errors. This might only be an issue w/ NVIDIA's internal Dazel, but who
+  ;; knows.
+  ;; FIXME: Combine this more elegantly w/ -do
+  (let ((total-cmd (s-join " " (-flatten `(,bazel-transient-bazel-cmd ,(symbol-name cmd) ,args
+                                                      ,target "| cat")))))
+    (message total-cmd)
+    (funcall (or do-fn 'compile) total-cmd))
+  )
+
 (defun bazel-transient-bazel-do (cmd args &optional target do-fn)
   "Execute a Bazel command CMD with ARGS and optional TARGET.
 
@@ -92,13 +105,8 @@ DO-FN is used to change exactly how the overall Bazel command is
 carried out.  By default, this is `compile', but can for instance
 be changed to `shell-command-to-string' if you intend to consume
 the command's results."
-  ;; FIXME: The | cat is a horrid hack to get around dazel
-  ;; (https://github.com/nadirizr/dazel) detecting sub-processes calling out to
-  ;; dazel from within Emacs as running inside a tty, leading to "not a tty"
-  ;; errors. This might only be an issue w/ NVIDIA's internal Dazel, but who
-  ;; knows.
   (let ((total-cmd (s-join " " (-flatten `(,bazel-transient-bazel-cmd ,(symbol-name cmd) ,args
-                                                      ,target "| cat")))))
+                                                      ,target)))))
     (message total-cmd)
     (funcall (or do-fn 'compile) total-cmd)))
 
@@ -158,10 +166,14 @@ the command's results."
       cached-targets
     (let* ((args `("--noshow_progress"
                    ,(s-lex-format "\"kind(${kind}, //...)\"")))
+           ;; FIXME: Need a bazel-transient-bazel-do-maybe that returns nil on
+           ;; failure; error out of this fn if retval is nil
            (output (bazel-transient-bazel-do 'query args nil
-                                             'shell-command-to-string))
+                                             'bazel-transient-shell-command-to-string-maybe))
            (results (s-lines output)))
-      (bazel-transient-cache-targets-maybe kind results))))
+      (if (not output)
+          (error "Get workspace targets failed.")
+        (bazel-transient-cache-targets-maybe kind (s-lines output))))))
 
 (defun bazel-transient-cache-targets-maybe (kind results)
   "Conditionally cache RESULTS under the kind KIND.
@@ -178,6 +190,7 @@ RESULTS.  Otherwise, cache and return RESULTS."
 
 (defun bazel-transient-invalidate-cache-maybe ()
   "Invalidate the cache if `bazel-transient-enable-caching' is non-nil."
+  (interactive)
   (when bazel-transient-enable-caching
     (setq bazel-transient-kind-target-cache (ht))
     (if bazel-transient-enable-caching (bazel-transient-serialize-kind-target-cache))))
@@ -210,7 +223,7 @@ RESULTS.  Otherwise, cache and return RESULTS."
   (let* ((b (or buffer (current-buffer)))
          (buffer-relpath (s-concat "./"
                                    (url-file-nondirectory (buffer-file-name b))))
-         (buffer-label (bazel-transient-bazel-do
+         (buffer-label (bazel-transient-bazel-do-subprocess
                         'query
                         ;; FIXME: need the following as defaults
                         ;; maybe consider creating a bazel profile
@@ -220,6 +233,14 @@ RESULTS.  Otherwise, cache and return RESULTS."
                         buffer-relpath
                         'shell-command-to-string)))
     (car (s-split ":" buffer-label))))
+
+(defun bazel-transient-shell-command-to-string-maybe (cmd)
+  "Return the output of CMD only if it successfully executes."
+  (let* ((exit-code nil)
+         (output (s-trim-right (with-output-to-string
+                                 (with-current-buffer standard-output
+                                   (setq exit-code (call-process-shell-command cmd nil t nil)))))))
+    (when (zerop exit-code) output)))
 
 (defun bazel-transient-test-all-in-current-package (args)
   "Execute all test targets in the current package.
@@ -264,6 +285,21 @@ ARGS is forwarded to Bazel as test command flags."
 (defun bazel-transient-serialize-kind-target-cache ()
   "Serializes the test cache to the hard drive."
   (bazel-transient-serialize bazel-transient-kind-target-cache bazel-transient-cache-file))
+
+(defun bazel-transient-workspace-root (&optional filename)
+  "Return the root of the workspace FILENAME belongs to.
+
+If FILENAME is not provided, use the file of the current buffer.
+
+If FILENAME belongs to a Projectile project, returns the retval
+of `projectile-project-root'."
+  (if (fboundp 'projectile-project-root)
+      (projectile-project-root)
+    (let ((filename (or filename (buffer-file-name (current-buffer)))))
+      ;; TODO: Cache this value
+      (f-traverse-upwards
+       (lambda (path) (f-exists-p (f-join path "WORKSPACE")))
+       filename))))
 
 (define-minor-mode bazel-transient-mode
   "Minor mode to enable transient command dispatch for Bazel projects."
