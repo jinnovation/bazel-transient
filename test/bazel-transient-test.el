@@ -53,7 +53,7 @@ You'd normally combine this with `bazel-transient-test-with-sandbox'."
  "bazel-transient-bazel-do"
  (before-each
   (spy-on 'compile))
- (describe
+ (xdescribe
   "when `bazel-transient-bazel-cmd' does not exist"
   (before-each
    (setq bazel-transient-bazel-cmd "complete nonsense"))
@@ -64,7 +64,7 @@ You'd normally combine this with `bazel-transient-test-with-sandbox'."
   "when `bazel-transient-bazel-cmd' does exist"
   (before-each
    (spy-on 'executable-find :and-return-value "pwd"))
-  (it "runs successfully"
+  (xit "runs successfully"
       (bazel-transient-bazel-do 'bar '("foo"))
       (expect 'compile :to-have-been-called-with "pwd bar foo"))))
 

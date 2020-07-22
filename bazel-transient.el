@@ -94,9 +94,18 @@ Returns nil if either WORKSPACE is not present, or KIND is not cached within the
             ,@(--map `(,(car it) ,@(cddr it)) clauses))
      (message "")))
 
+(defun bazel-transient-shell-command-to-string-maybe (&rest args)
+  "Return output of command comprised of ARGS on successful execution."
+  (let* ((exit-code -1)
+         (cmd (message (s-join " " (-flatten args))))
+         (output (s-trim-right (with-output-to-string
+                                 (with-current-buffer standard-output
+                                   (setq exit-code (call-process-shell-command cmd nil t nil)))))))
+    (when (zerop exit-code) output)))
+
+
 (defun bazel-transient-bazel-command-to-string-maybe (cmd args &optional target)
-  "Execute a Bazel command CMD with ARGS and optional
-  TARGET. Return the result as a string if successful.
+  "Return the result of Bazel command CMD with ARGS and TARGET if successful.
 
 TARGET is provided primarily for semantic convenience.  Passing
 the corresponding value in as the last value of the ARGS list
@@ -105,22 +114,21 @@ results in equivalent behavior.
 If `bazel-transient-bazel-cmd' is not an actual executable, error
 out."
   (bazel-transient-shell-command-to-string-maybe
-   (s-join " " (-flatten `(,bazel-transient-bazel-cmd
-                           ,(symbol-name cmd)
-                           ,args
-                           ,target
-                           ;; FIXME: Really need to have a package-internal
-                           ;; .bazelrc to use across all cmd invocations to
-                           ;; avoid users' configs getting in the way like this
-                           "--color=no"
-                           "--noshow_progress"
-                           ;; FIXME: The | cat is a horrid hack to get around
-                           ;; dazel (https://github.com/nadirizr/dazel)
-                           ;; detecting sub-processes calling out to dazel from
-                           ;; within Emacs as running inside a tty, leading to
-                           ;; "not a tty" errors. This might only be an issue w/
-                           ;; NVIDIA's internal Dazel, but who knows.
-                           "| cat")))))
+   bazel-transient-bazel-cmd
+   (symbol-name cmd)
+   args
+   target
+   ;; FIXME: Really need to have a package-internal .bazelrc to use across all
+   ;; cmd invocations to avoid users' configs getting in the way like this
+   "--color=no"
+   "--noshow_progress"
+   "--show_timestamps=no"
+   ;; FIXME: The | cat is a horrid hack to get around dazel
+   ;; (https://github.com/nadirizr/dazel) detecting sub-processes calling out to
+   ;; dazel from within Emacs as running inside a tty, leading to "not a tty"
+   ;; errors. This might only be an issue w/ NVIDIA's internal Dazel, but who
+   ;; knows.
+   "| cat"))
 
 (defun bazel-transient-bazel-do (cmd args &optional target)
   "Execute a Bazel command CMD with ARGS and optional TARGET.
@@ -131,7 +139,16 @@ results in equivalent behavior.
 
 If `bazel-transient-bazel-cmd' is not an actual executable, error
 out."
-  (if-let* ((bazel-cmd (executable-find bazel-transient-bazel-cmd))
+  (if-let* ((bazel-cmd
+            ;; FIXME: Needs to handle TRAMP. Namely, bazel-cmd that exists
+            ;; remotely, that we intend to run remotely, will get checked
+            ;; against local PATH. This is no bueno.
+            ;;
+            ;;Take inspiration from projectile-file-exists-p
+             bazel-transient-bazel-cmd)
+
+             ;; (or (executable-find bazel-transient-bazel-cmd) (f-exists-p
+             ;;               (f-full bazel-transient-bazel-cmd))))
             (total-cmd (s-join " "
                                (-flatten `(,bazel-cmd
                                            ,(symbol-name cmd)
@@ -255,14 +272,6 @@ RESULTS.  Otherwise, cache and return RESULTS."
       (car (s-split ":" buffer-label))
     (error "Failed to get buffer's package label")))
 
-(defun bazel-transient-shell-command-to-string-maybe (cmd)
-  "Return the output of CMD only if it successfully executes."
-  (let* ((exit-code -1)
-         (output (s-trim-right (with-output-to-string
-                                 (with-current-buffer standard-output
-                                   (setq exit-code (call-process-shell-command cmd nil t nil)))))))
-    (when (zerop exit-code) output)))
-
 (defun bazel-transient-test-all-in-current-package (args)
   "Execute all test targets in the current package.
 
@@ -329,3 +338,4 @@ If FILENAME is not provided, use the file of the current buffer."
 (provide 'bazel-transient)
 
 ;;; bazel-transient.el ends here
+
