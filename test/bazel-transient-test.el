@@ -126,9 +126,13 @@
  "bazel-transient-shell-command-to-string-maybe"
  (describe
   "when command fails"
-  (it "returns nil"))
+  (it "returns nil"
+      (expect (bazel-transient-shell-command-to-string-maybe "false") :to-equal nil)))
  (describe
   "when command succeeds"
-  (it "returns the command output")))
+  (it "returns the command output"
+      (expect
+       (bazel-transient-shell-command-to-string-maybe "echo \"hello world\"")
+       :to-equal "hello world"))))
 
 ;;; bazel-transient-test.el ends here
