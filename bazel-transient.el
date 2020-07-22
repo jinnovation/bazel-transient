@@ -67,6 +67,16 @@
   (ht)
   "A hashmap used to cache project targets by kind.")
 
+(defun bazel-transient-kind-target-cache-lookup (kind &optional workspace)
+  "Look up the cached targets of KIND stored for WORKSPACE.
+
+Returns nil if either WORKSPACE is not present, or KIND is not cached within the
+  WORKSPACE."
+  (when-let ((workspace (or workspace (bazel-transient-workspace-root)))
+             (workspace-cache (ht-get bazel-transient-kind-target-cache
+                                      workspace)))
+    (ht-get workspace-cache kind)))
+
 (defconst bazel-transient-workspace-file-name "WORKSPACE"
   "The file name used to identify the root of a Bazel project.")
 

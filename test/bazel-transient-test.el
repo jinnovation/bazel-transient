@@ -193,7 +193,34 @@ You'd normally combine this with `bazel-transient-test-with-sandbox'."
     "when not in a Bazel directory"
     (it "returns nil"
         (expect (bazel-transient-workspace-root "./test/sandbox/dirB/foo")
-                :to-equal
+                :to-be
                 nil))))))
+
+(describe
+ "bazel-transient-kind-target-cache-lookup"
+ (before-all
+  (setq bazel-transient-kind-target-cache
+        (ht ("root-a" (ht ('kind-a '("a1" "a2" "a3"))))
+            ("root-b" (ht ('kind-a '("a4" "a5", "a6")))))))
+ (describe
+  "when WORKSPACE not present"
+  (it "returns nil"
+      (expect (bazel-transient-kind-target-cache-lookup 'kind-a "arst")
+              :to-be
+              nil)))
+ (describe
+  "when WORKSPACE is present"
+  (describe
+   "when KIND is not present"
+   (it "returns nil"
+       (expect (bazel-transient-kind-target-cache-lookup 'kind-b "root-a")
+               :to-be
+               nil)))
+  (describe
+   "when KIND is present"
+   (it "returns the value"
+       (expect (bazel-transient-kind-target-cache-lookup 'kind-a "root-a")
+               :to-equal
+               '("a1" "a2" "a3"))))))
 
 ;;; bazel-transient-test.el ends here
