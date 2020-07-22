@@ -25,7 +25,7 @@
 
 * Credits
 
-  Thanks to [[github.com/bbatsov/][Bozhidar Batsov]], whose excellent [[github.com/bbatsov/projectile/][Projectile]] project inspires much of
+  Thanks to [[https://github.com/bbatsov/][Bozhidar Batsov]], whose excellent [[https://github.com/bbatsov/projectile/][Projectile]] project inspires much of
   the functionality of this package.
 
   Thanks to [[https://github.com/tarsius][Jonas Bernoulli]] and the [[https://github.com/magit/magit][Magit]] project for creating the foundation of
