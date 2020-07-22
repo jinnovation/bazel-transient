@@ -100,8 +100,12 @@ You'd normally combine this with `bazel-transient-test-with-sandbox'."
  (describe
   "when `bazel-transient-enable-caching' is non-nil"
   (before-each
-   (setq bazel-transient-enable-caching t))
-  (it "invalidates the in-memory cache")
+   (setq bazel-transient-enable-caching t)
+   (setq bazel-transient-kind-target-cache
+         (ht ('test 1))))
+  (it "invalidates the in-memory cache"
+      (bazel-transient-invalidate-cache-maybe)
+      (expect bazel-transient-kind-target-cache :to-equal-ht (ht)))
   (it "deletes the serialized file cache")))
 
 (describe
