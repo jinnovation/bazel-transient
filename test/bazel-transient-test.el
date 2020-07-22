@@ -22,6 +22,25 @@
 (require 'ht)
 
 (describe
+ "bazel-transient-bazel-do"
+ (before-each
+  (spy-on 'bazel-transient-funcall))
+ (describe
+  "when `bazel-transient-bazel-cmd' does not exist"
+  (before-each
+   (setq bazel-transient-bazel-cmd "complete nonsense"))
+  (it "fails"
+      (expect (bazel-transient-bazel-do 'test '("foo")) :to-throw)
+      (expect 'bazel-transient-funcall :not :to-have-been-called)))
+ (describe
+  "when `bazel-transient-bazel-cmd' does exist"
+  (before-each
+   (spy-on 'executable-find :and-return-value "pwd"))
+  (it "runs successfully"
+      (bazel-transient-bazel-do 'bar '("foo"))
+      (expect 'bazel-transient-funcall :to-have-been-called-with 'compile "pwd bar foo"))))
+
+(describe
  "bazel-transient-cache-targets-maybe"
  (it "caches RESULTS under KIND if caching enabled"
      (let ((bazel-transient-enable-caching t))

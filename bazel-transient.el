@@ -81,6 +81,7 @@
             ,@(--map `(,(car it) ,@(cddr it)) clauses))
      (message "")))
 
+;; FIXME: Rename to bazel-transient-bazel-do-to-string
 (defun bazel-transient-bazel-do-subprocess (cmd args &optional target do-fn)
   ;; FIXME: The | cat is a horrid hack to get around dazel
   ;; (https://github.com/nadirizr/dazel) detecting sub-processes calling out to
@@ -91,8 +92,10 @@
   (let ((total-cmd (s-join " " (-flatten `(,bazel-transient-bazel-cmd ,(symbol-name cmd) ,args
                                                       ,target "| cat")))))
     (message total-cmd)
-    (funcall (or do-fn 'compile) total-cmd))
-  )
+    (funcall (or do-fn 'compile) total-cmd)))
+
+(defalias 'bazel-transient-funcall 'funcall
+  "Shadow native `funcall' to allow for spying on in tests.")
 
 (defun bazel-transient-bazel-do (cmd args &optional target do-fn)
   "Execute a Bazel command CMD with ARGS and optional TARGET.
@@ -101,14 +104,21 @@ TARGET is provided primarily for semantic convenience.  Passing
 the corresponding value in as the last value of the ARGS list
 results in equivalent behavior.
 
+If `bazel-transient-bazel-cmd' is not an actual executable, error
+out.
+
 DO-FN is used to change exactly how the overall Bazel command is
 carried out.  By default, this is `compile', but can for instance
 be changed to `shell-command-to-string' if you intend to consume
 the command's results."
-  (let ((total-cmd (s-join " " (-flatten `(,bazel-transient-bazel-cmd ,(symbol-name cmd) ,args
-                                                      ,target)))))
-    (message total-cmd)
-    (funcall (or do-fn 'compile) total-cmd)))
+  (if-let* ((bazel-cmd (executable-find bazel-transient-bazel-cmd))
+            (total-cmd (s-join " "
+                               (-flatten `(,bazel-cmd
+                                           ,(symbol-name cmd)
+                                           ,args
+                                           ,target)))))
+      (bazel-transient-funcall (or do-fn 'compile) total-cmd)
+    (error "`%s' not found" bazel-transient-bazel-cmd)))
 
 (transient-define-infix bazel-test-test-output ()
   :class 'transient-option
