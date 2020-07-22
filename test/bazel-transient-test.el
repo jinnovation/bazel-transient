@@ -24,21 +24,21 @@
 (describe
  "bazel-transient-bazel-do"
  (before-each
-  (spy-on 'bazel-transient-funcall))
+  (spy-on 'compile))
  (describe
   "when `bazel-transient-bazel-cmd' does not exist"
   (before-each
    (setq bazel-transient-bazel-cmd "complete nonsense"))
   (it "fails"
       (expect (bazel-transient-bazel-do 'test '("foo")) :to-throw)
-      (expect 'bazel-transient-funcall :not :to-have-been-called)))
+      (expect 'compile :not :to-have-been-called)))
  (describe
   "when `bazel-transient-bazel-cmd' does exist"
   (before-each
    (spy-on 'executable-find :and-return-value "pwd"))
   (it "runs successfully"
       (bazel-transient-bazel-do 'bar '("foo"))
-      (expect 'bazel-transient-funcall :to-have-been-called-with 'compile "pwd bar foo"))))
+      (expect 'compile :to-have-been-called-with "pwd bar foo"))))
 
 (describe
  "bazel-transient-cache-targets-maybe"
@@ -88,7 +88,7 @@
  "bazel-transient-get-all-workspace-targets-of-kind"
  (before-each
   (setq bazel-transient-kind-target-cache (ht ('test '("foo"))))
-  (spy-on 'bazel-transient-bazel-do :and-return-value "foo\nbar\nbaz"))
+  (spy-on 'bazel-transient-bazel-command-to-string-maybe :and-return-value "foo\nbar\nbaz"))
 
  (describe
   "when `bazel-transient-enable-caching' is non-nil"
@@ -102,14 +102,14 @@
                :to-equal
                '("foo")))
    (it "makes no call to Bazel"
-       (expect 'bazel-transient-bazel-do :not :to-have-been-called)))
+       (expect 'bazel-transient-bazel-command-to-string-maybe :not :to-have-been-called)))
 
   (describe
    "when cache does not contain the kind"
    (it "returns the Bazel query result"
        (let ((res (bazel-transient-get-all-workspace-targets-of-kind 'other-kind)))
          (expect res :to-equal '("foo" "bar" "baz"))
-         (expect 'bazel-transient-bazel-do :to-have-been-called)))))
+         (expect 'bazel-transient-bazel-command-to-string-maybe :to-have-been-called)))))
 
  (describe
   "when `bazel-transient-enable-caching' is nil"
@@ -119,7 +119,7 @@
 
   (it "returns the Bazel query result"
       (let ((res (bazel-transient-get-all-workspace-targets-of-kind 'test)))
-        (expect 'bazel-transient-bazel-do :to-have-been-called)
+        (expect 'bazel-transient-bazel-command-to-string-maybe :to-have-been-called)
         (expect res :to-equal '("foo" "bar" "baz"))))))
 
 (describe

@@ -81,23 +81,35 @@
             ,@(--map `(,(car it) ,@(cddr it)) clauses))
      (message "")))
 
-;; FIXME: Rename to bazel-transient-bazel-do-to-string
-(defun bazel-transient-bazel-do-subprocess (cmd args &optional target do-fn)
-  ;; FIXME: The | cat is a horrid hack to get around dazel
-  ;; (https://github.com/nadirizr/dazel) detecting sub-processes calling out to
-  ;; dazel from within Emacs as running inside a tty, leading to "not a tty"
-  ;; errors. This might only be an issue w/ NVIDIA's internal Dazel, but who
-  ;; knows.
-  ;; FIXME: Combine this more elegantly w/ -do
-  (let ((total-cmd (s-join " " (-flatten `(,bazel-transient-bazel-cmd ,(symbol-name cmd) ,args
-                                                      ,target "| cat")))))
-    (message total-cmd)
-    (funcall (or do-fn 'compile) total-cmd)))
+(defun bazel-transient-bazel-command-to-string-maybe (cmd args &optional target)
+  "Execute a Bazel command CMD with ARGS and optional
+  TARGET. Return the result as a string if successful.
 
-(defalias 'bazel-transient-funcall 'funcall
-  "Shadow native `funcall' to allow for spying on in tests.")
+TARGET is provided primarily for semantic convenience.  Passing
+the corresponding value in as the last value of the ARGS list
+results in equivalent behavior.
 
-(defun bazel-transient-bazel-do (cmd args &optional target do-fn)
+If `bazel-transient-bazel-cmd' is not an actual executable, error
+out."
+  (bazel-transient-shell-command-to-string-maybe
+   (s-join " " (-flatten `(,bazel-transient-bazel-cmd
+                           ,(symbol-name cmd)
+                           ,args
+                           ,target
+                           ;; FIXME: Really need to have a package-internal
+                           ;; .bazelrc to use across all cmd invocations to
+                           ;; avoid users' configs getting in the way like this
+                           "--color=no"
+                           "--noshow_progress"
+                           ;; FIXME: The | cat is a horrid hack to get around
+                           ;; dazel (https://github.com/nadirizr/dazel)
+                           ;; detecting sub-processes calling out to dazel from
+                           ;; within Emacs as running inside a tty, leading to
+                           ;; "not a tty" errors. This might only be an issue w/
+                           ;; NVIDIA's internal Dazel, but who knows.
+                           "| cat")))))
+
+(defun bazel-transient-bazel-do (cmd args &optional target)
   "Execute a Bazel command CMD with ARGS and optional TARGET.
 
 TARGET is provided primarily for semantic convenience.  Passing
@@ -105,19 +117,14 @@ the corresponding value in as the last value of the ARGS list
 results in equivalent behavior.
 
 If `bazel-transient-bazel-cmd' is not an actual executable, error
-out.
-
-DO-FN is used to change exactly how the overall Bazel command is
-carried out.  By default, this is `compile', but can for instance
-be changed to `shell-command-to-string' if you intend to consume
-the command's results."
+out."
   (if-let* ((bazel-cmd (executable-find bazel-transient-bazel-cmd))
             (total-cmd (s-join " "
                                (-flatten `(,bazel-cmd
                                            ,(symbol-name cmd)
                                            ,args
                                            ,target)))))
-      (bazel-transient-funcall (or do-fn 'compile) total-cmd)
+      (compile total-cmd)
     (error "`%s' not found" bazel-transient-bazel-cmd)))
 
 (transient-define-infix bazel-test-test-output ()
@@ -174,16 +181,11 @@ the command's results."
   (if-let ((caching-p bazel-transient-enable-caching)
            (cached-targets (gethash kind bazel-transient-kind-target-cache)))
       cached-targets
-    (let* ((args `("--noshow_progress"
-                   ,(s-lex-format "\"kind(${kind}, //...)\"")))
-           ;; FIXME: Need a bazel-transient-bazel-do-maybe that returns nil on
-           ;; failure; error out of this fn if retval is nil
-           (output (bazel-transient-bazel-do 'query args nil
-                                             'bazel-transient-shell-command-to-string-maybe))
-           (results (s-lines output)))
-      (if (not output)
-          (error "Get workspace targets failed.")
-        (bazel-transient-cache-targets-maybe kind (s-lines output))))))
+    (if-let* ((output (bazel-transient-bazel-command-to-string-maybe
+                       'query
+                       (s-lex-format "\"kind(${kind}, //...)\""))))
+        (bazel-transient-cache-targets-maybe kind (s-lines output))
+      (error "Get workspace targets failed"))))
 
 (defun bazel-transient-cache-targets-maybe (kind results)
   "Conditionally cache RESULTS under the kind KIND.
@@ -230,19 +232,15 @@ RESULTS.  Otherwise, cache and return RESULTS."
 (defun bazel-transient-get-buffer-pkg-label (&optional buffer)
   "Gets the label of the package that the file BUFFER is visiting belongs to."
   ;; FIXME: Interactively select buffer from those available
-  (let* ((b (or buffer (current-buffer)))
-         (buffer-relpath (s-concat "./"
-                                   (url-file-nondirectory (buffer-file-name b))))
-         (buffer-label (bazel-transient-bazel-do-subprocess
-                        'query
-                        ;; FIXME: need the following as defaults
-                        ;; maybe consider creating a bazel profile
-                        ;; --noshow_loading_progress
-                        ;; --nohome_rc by default
-                        '("--noshow_progress" "--output label")
-                        buffer-relpath
-                        'shell-command-to-string)))
-    (car (s-split ":" buffer-label))))
+  (if-let* ((b (or buffer (current-buffer)))
+            (buffer-relpath (s-concat "./"
+                                      (url-file-nondirectory (buffer-file-name b))))
+            (buffer-label (bazel-transient-bazel-command-to-string-maybe
+                           'query
+                           '("--output label")
+                           buffer-relpath)))
+      (car (s-split ":" buffer-label))
+    (error "Failed to get buffer's package label")))
 
 (defun bazel-transient-shell-command-to-string-maybe (cmd)
   "Return the output of CMD only if it successfully executes."
