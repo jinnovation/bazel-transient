@@ -5,6 +5,8 @@
 
 (buttercup-define-matcher-for-binary-function :to-equal-ht ht-equal-p)
 
+(buttercup-define-matcher-for-binary-function :to-equal-path f-same-p)
+
 (add-to-list 'load-path (f-parent (f-parent (f-this-file))))
 
 (require 'undercover)

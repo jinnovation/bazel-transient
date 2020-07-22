@@ -67,6 +67,9 @@
   (ht)
   "A hashmap used to cache project targets by kind.")
 
+(defconst bazel-transient-workspace-file-name "WORKSPACE"
+  "The file name used to identify the root of a Bazel project.")
+
 ;; FIXME: Copied wholesale from magit-utils.el. Upstream a PR to
 ;; transient that decouples this from magit.
 (defmacro bazel-transient-read-char-case (prompt verbose &rest clauses)
@@ -297,17 +300,13 @@ ARGS is forwarded to Bazel as test command flags."
 (defun bazel-transient-workspace-root (&optional filename)
   "Return the root of the workspace FILENAME belongs to.
 
-If FILENAME is not provided, use the file of the current buffer.
-
-If FILENAME belongs to a Projectile project, returns the retval
-of `projectile-project-root'."
-  (if (fboundp 'projectile-project-root)
-      (projectile-project-root)
-    (let ((filename (or filename (buffer-file-name (current-buffer)))))
-      ;; TODO: Cache this value
-      (f-traverse-upwards
-       (lambda (path) (f-exists-p (f-join path "WORKSPACE")))
-       filename))))
+If FILENAME is not provided, use the file of the current buffer."
+  ;; TODO: Cache this value
+  (f-traverse-upwards
+   (lambda (path) (let ((workspace-file (f-join path bazel-transient-workspace-file-name)))
+                    (and (file-exists-p workspace-file)
+                              (not (f-directory-p workspace-file)))))
+   (or filename (buffer-file-name (current-buffer)))))
 
 (define-minor-mode bazel-transient-mode
   "Minor mode to enable transient command dispatch for Bazel projects."
